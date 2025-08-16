@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flashcard App</title>
+  <style>
+    :root {
+      --ok: #16a34a;
+      --bad: #dc2626;
+      --accent: #2563eb;
+      --muted: #e5e7eb;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      margin: 0;
+      background: #f0f0f0;
+      padding-top: 60px;
+    }
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 50px;
+      background: #fff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      box-sizing: border-box;
+      z-index: 1000;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.5em;
+    }
+    #container {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      width: 90%;
+      max-width: 800px;
+      text-align: center;
+      margin-top: 20px;
+    }
+    fieldset {
+      margin: 10px 0;
+      text-align: left;
+    }
+    #flashcard {
+      margin-top: 20px;
+    }
+    #progress {
+      font-size: 0.95em;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    #question {
+      font-size: 1.2em;
+      margin: 16px 0;
+      text-align: left;
+      background: #fafafa;
+      border: 1px solid var(--muted);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    #answerValues div {
+      font-size: 1.05em;
+      margin: 6px 0 10px;
+      color: #333;
+      text-align: left;
+    }
+    .answer-test {
+      margin: 4px 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px dashed transparent;
+    }
+    .answer-test.kbd-focus {
+      border-color: var(--accent);
+      background: #f8fafc;
+    }
+    .btn-group { display: inline-flex; gap: 8px; }
+    button {
+      padding: 8px 14px;
+      margin: 0;
+      font-size: 0.95em;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: box-shadow 0.1s, border-color 0.1s;
+    }
+    button:hover { box-shadow: 0 0 0 3px #0000000b; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .choice.selected { border: 2px solid var(--accent); }
+    .is-correct { border: 2px solid var(--ok) !important; }
+    .is-wrong { border: 2px solid var(--bad) !important; }
+
+    #nextCard { background: var(--accent); color: white; border-color: var(--accent); }
+    #startBtn { background: var(--ok); color: white; border-color: var(--ok); margin-top: 10px; }
+
+    #score { text-align: left; }
+    #score h3 { margin: 16px 0 8px; }
+    #score table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    #score th, #score td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; vertical-align: top; }
+    #score tr:nth-child(even) { background: #fafafa; }
+
+    #instructions { margin-top: 10px; color: #333; }
+
+    #shortcutHelp {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    #shortcutContent {
+      background: #fff;
+      color: #000;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 80%;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    #shortcutContent h2 { margin-top: 0; }
+    #shortcutContent ul { text-align: left; }
+    #closeHelp { background: var(--bad); color: #fff; }
+  </style>
+</head>
+<body>
+  <header><h1>Flashcard App</h1></header>
+  <div id="container">
+    <div id="uploadSection">
+      <input type="file" id="fileInput" accept=".csv" /><br />
+      <p id="instructions">Upload a CSV file. First row is headers.</p>
+    </div>
+
+    <div id="selector" style="display: none">
+      <h2>Select Columns</h2>
+      <fieldset>
+        <legend>Fields to Show</legend>
+        <div id="visibleFields"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Fields to Test</legend>
+        <div id="testFields"></div>
+      </fieldset>
+      <button id="startBtn" disabled>Start Flashcards</button>
+    </div>
+
+    <div id="flashcard" style="display: none">
+      <div id="progress"></div>
+      <div id="question"></div>
+      <div id="answerDiv" style="display: none">
+        <div id="answerValues"></div>
+        <div id="answerControls"></div>
+        <button id="nextCard" disabled>Next Card (Space)</button>
+      </div>
+    </div>
+
+    <div id="score" style="display: none"></div>
+  </div>
+
+  <div id="shortcutHelp">
+    <div id="shortcutContent">
+      <h2>Keyboard Shortcuts</h2>
+      <ul>
+        <li><strong>Space</strong>: Reveal answer / Next card (when ready) / Start flashcards on selection screen</li>
+        <li><strong>↑ / ↓</strong>: Move between tested fields</li>
+        <li><strong>←</strong>: Mark <em>Wrong</em> for focused field</li>
+        <li><strong>→</strong>: Mark <em>Correct</em> for focused field</li>
+        <li><strong>Shift+?</strong>: Toggle this help</li>
+        <li><strong>Esc</strong>: Close help</li>
+      </ul>
+      <button id="closeHelp">Close</button>
+    </div>
+  </div>
+
+  <script>
+    // --- CSV parsing with quotes + escaped quotes ---
+    function parseCSV(text) {
+      // Parse entire CSV respecting quotes, commas, and newlines inside quotes
+      // Returns array of rows, each row = array of fields
+      const rows = [];
+      let row = [];
+      let field = '';
+      let inQuotes = false;
+      // Normalize newlines and strip BOM if present
+      const s = String(text).replace(/^﻿/, '').replace(/
+/g, '
+').replace(/
+/g, '
+');
+      for (let i = 0; i < s.length; i++) {
+        const ch = s[i];
+        if (ch === '"') {
+          if (inQuotes && s[i + 1] === '"') { field += '"'; i++; }
+          else { inQuotes = !inQuotes; }
+        } else if (ch === ',' && !inQuotes) {
+          row.push(field); field = '';
+        } else if (ch === '
+' && !inQuotes) {
+          row.push(field); rows.push(row); row = []; field = '';
+        } else {
+          field += ch;
+        }
+      }
+      // push last field/row
+      row.push(field); rows.push(row);
+      // drop completely empty rows
+      return rows.filter(r => r.some(v => (v ?? '').trim() !== ''));
+    }
+
+    // --- Simple tests for the parser (dev console) ---
+    (function testCSV() {
+      const text1 = '"a","b"
+"x, y","z"';
+      const out1 = parseCSV(text1);
+      console.log('CSV test block 1', out1);
+
+      const text2 = 'word,definition
+"alpha","first, primary"
+"beta","line1
+line2 (still same field)"';
+      const out2 = parseCSV(text2);
+      console.log('CSV test block 2 (embedded comma + newline)', out2);
+
+      const text3 = '"The verb ""eulogize"" means","to praise"';
+      const out3 = parseCSV(text3);
+      console.log('CSV test block 3 (escaped quotes)', out3);
+    })();
+
+    // --- State ---
+    let headers = [], rawRecords = [], flashcards = [];
+    let currentIndex = 0;
+    let correctCount = {};
+    let wrongLog = []; // for review table
+
+    // Keyboard focus/selection within a card
+    let focusIdx = 0; // which tested field is focused
+
+    const fileInput = document.getElementById('fileInput');
+    const selectorDiv = document.getElementById('selector');
+    const visibleFieldsDiv = document.getElementById('visibleFields');
+    const testFieldsDiv = document.getElementById('testFields');
+    const startBtn = document.getElementById('startBtn');
+
+    const flashcardDiv = document.getElementById('flashcard');
+    const progressDiv = document.getElementById('progress');
+    const questionDiv = document.getElementById('question');
+    const answerDiv = document.getElementById('answerDiv');
+    const answerValuesDiv = document.getElementById('answerValues');
+    const answerControlsDiv = document.getElementById('answerControls');
+    const nextCardBtn = document.getElementById('nextCard');
+
+    const scoreDiv = document.getElementById('score');
+    const instructionsP = document.getElementById('instructions');
+    const shortcutHelp = document.getElementById('shortcutHelp');
+    const closeHelp = document.getElementById('closeHelp');
+
+    // --- File load & header selection ---
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        // Use robust CSV parser that respects quotes and commas/newlines inside quotes
+        const rows = parseCSV(e.target.result);
+        if (rows.length < 2) {
+          instructionsP.textContent = 'CSV needs at least header and one data row.';
+          return;
+        }
+        // First non-empty row is header; remainder are data rows
+        headers = rows[0].map((h) => h.trim());
+        rawRecords = rows.slice(1);
+
+        visibleFieldsDiv.innerHTML = '';
+        testFieldsDiv.innerHTML = '';
+        headers.forEach((h, i) => {
+          visibleFieldsDiv.insertAdjacentHTML(
+            'beforeend',
+            `<label><input type="checkbox" data-index="${i}"> ${h}</label><br />`
+          );
+          testFieldsDiv.insertAdjacentHTML(
+            'beforeend',
+            `<label><input type="checkbox" data-index="${i}"> ${h}</label><br />`
+          );
+        });
+        selectorDiv.style.display = 'block';
+        startBtn.disabled = true;
+
+        selectorDiv.addEventListener('change', () => {
+          const showChk = visibleFieldsDiv.querySelectorAll('input:checked').length;
+          const testChk = testFieldsDiv.querySelectorAll('input:checked').length;
+          startBtn.disabled = !(showChk > 0 && testChk > 0);
+        });
+      };
+      reader.readAsText(file);
+    });
+
+    startBtn.addEventListener('click', () => {
+      const visibleIdx = Array.from(
+        visibleFieldsDiv.querySelectorAll('input:checked')
+      ).map((cb) => +cb.dataset.index);
+      const testIdx = Array.from(
+        testFieldsDiv.querySelectorAll('input:checked')
+      ).map((cb) => +cb.dataset.index);
+
+      // Only include rows that have values for all selected indices
+      const validRecs = rawRecords.filter((rec) =>
+        visibleIdx.concat(testIdx).every((i) => rec[i] !== undefined)
+      );
+
+      flashcards = validRecs.map((rec) => {
+        const promptParts = visibleIdx.map(
+          (i) => `<strong>${headers[i]}:</strong> ${(rec[i] || '').trim()}`
+        );
+        const answers = testIdx.map((i) => ({
+          field: headers[i],
+          value: (rec[i] || '').trim(),
+          answered: false,
+          pending: 'correct', // keyboard default
+        }));
+        return { qHtml: promptParts.join('<br>'), answers };
+      });
+
+      // Init per-field counters
+      correctCount = {};
+      testIdx.forEach((i) => (correctCount[headers[i]] = 0));
+      wrongLog = [];
+
+      document.getElementById('uploadSection').style.display = 'none';
+      selectorDiv.style.display = 'none';
+      flashcardDiv.style.display = 'block';
+      currentIndex = 0;
+      showQuestion();
+    });
+
+    // --- Card lifecycle ---
+    function showQuestion() {
+      const total = flashcards.length;
+      const remaining = total - currentIndex;
+      progressDiv.textContent = `Card ${currentIndex + 1} of ${total} — Remaining: ${remaining - 1}`;
+      const card = flashcards[currentIndex];
+      questionDiv.innerHTML = card.qHtml;
+      answerDiv.style.display = 'none';
+      nextCardBtn.disabled = true;
+    }
+
+    function showAnswer() {
+      const card = flashcards[currentIndex];
+      // Values
+      answerValuesDiv.innerHTML = card.answers
+        .map((a) => `<div><strong>${a.field}:</strong> ${a.value}</div>`) 
+        .join('');
+
+      // Controls
+      answerControlsDiv.innerHTML = '';
+      card.answers.forEach((ans, idx) => {
+        const row = document.createElement('div');
+        row.className = 'answer-test';
+        row.dataset.index = String(idx);
+        row.innerHTML = `
+          <span><strong>${ans.field}</strong></span>
+          <div class="btn-group">
+            <button class="choice wrongBtn">Wrong</button>
+            <button class="choice correctBtn">Correct</button>
+          </div>`;
+        answerControlsDiv.appendChild(row);
+      });
+
+      // Initial keyboard focus defaults
+      focusIdx = 0;
+      card.answers.forEach((a) => (a.pending = 'correct'));
+      renderFocusAndSelection();
+
+      // Wire mouse handlers
+      // Wire mouse handlers with correct row index
+      const rows = Array.from(answerControlsDiv.querySelectorAll('.answer-test'));
+      rows.forEach((row, idx) => {
+        row.querySelector('.wrongBtn').addEventListener('click', () => { focusIdx = idx; markAnswer(false); });
+        row.querySelector('.correctBtn').addEventListener('click', () => { focusIdx = idx; markAnswer(true); });
+      });
+
+      answerDiv.style.display = 'block';
+    }
+
+    // Update UI to reflect focusIdx and each answer's pending selection
+    function renderFocusAndSelection() {
+      const card = flashcards[currentIndex];
+      const rows = Array.from(answerControlsDiv.querySelectorAll('.answer-test'));
+      rows.forEach((row, idx) => {
+        row.classList.toggle('kbd-focus', idx === focusIdx && !card.answers[idx].answered);
+        const wrongB = row.querySelector('.wrongBtn');
+        const corrB = row.querySelector('.correctBtn');
+        wrongB.classList.remove('selected');
+        corrB.classList.remove('selected');
+        if (!card.answers[idx].answered) {
+          (card.answers[idx].pending === 'wrong' ? wrongB : corrB).classList.add('selected');
+        } else {
+          // Persist final state styling
+          (card.answers[idx].final === 'wrong' ? wrongB : corrB).classList.add(
+            card.answers[idx].final === 'wrong' ? 'is-wrong' : 'is-correct'
+          );
+        }
+      });
+    }
+
+    function moveFocus(delta) {
+      const card = flashcards[currentIndex];
+      const n = card.answers.length;
+      let next = focusIdx;
+      for (let step = 0; step < n; step++) {
+        next = (next + delta + n) % n;
+        if (!card.answers[next].answered) break;
+      }
+      focusIdx = next;
+      renderFocusAndSelection();
+    }
+
+    function toggleChoice(dir) {
+      // Immediate commit with left/right arrows
+      const isCorrect = (dir === 'right');
+      markAnswer(isCorrect);
+    }
+
+    function selectAndConfirm(selection) {
+      const card = flashcards[currentIndex];
+      const ans = card.answers[focusIdx];
+      if (ans.answered) return;
+      ans.pending = selection; // set chosen
+      markAnswer(ans.pending === 'correct');
+    }
+
+    function markAnswer(isCorrect) {
+      const card = flashcards[currentIndex];
+      const row = answerControlsDiv.querySelector(`.answer-test[data-index="${focusIdx}"]`);
+      const wrongB = row.querySelector('.wrongBtn');
+      const corrB = row.querySelector('.correctBtn');
+
+      const ans = card.answers[focusIdx];
+      ans.answered = true;
+      ans.final = isCorrect ? 'correct' : 'wrong';
+
+      // Tally & review
+      if (isCorrect) {
+        correctCount[ans.field]++;
+      } else {
+        wrongLog.push({
+          cardIndex: currentIndex + 1,
+          promptHtml: card.qHtml,
+          field: ans.field,
+          correctValue: ans.value,
+        });
+      }
+
+      // Visual state
+      wrongB.disabled = true; corrB.disabled = true;
+      (isCorrect ? corrB : wrongB).classList.add(isCorrect ? 'is-correct' : 'is-wrong');
+      renderFocusAndSelection();
+
+      // Move focus to next unanswered (if any)
+      if (card.answers.some((a) => !a.answered)) {
+        moveFocus(1);
+      } else {
+        nextCardBtn.disabled = false;
+      }
+    }
+
+    nextCardBtn.addEventListener('click', () => {
+      currentIndex++;
+      if (currentIndex < flashcards.length) showQuestion();
+      else showScore();
+    });
+
+    // --- Keyboard handling ---
+    document.addEventListener('keydown', (e) => {
+      // Toggle help overlay
+      if (e.shiftKey && e.key === '?') {
+        e.preventDefault();
+        shortcutHelp.style.display =
+          shortcutHelp.style.display === 'flex' ? 'none' : 'flex';
+        return;
+      }
+      if (shortcutHelp.style.display === 'flex') {
+        if (e.key === 'Escape') shortcutHelp.style.display = 'none';
+        return;
+      }
+
+      // Column selector view: Enter to start
+      if (selectorDiv.style.display === 'block') {
+        if (e.code === 'Space' && !startBtn.disabled) { e.preventDefault(); startBtn.click(); }
+        return;
+      }
+
+      // Flashcard view
+      if (flashcardDiv.style.display === 'block') {
+        const answerShown = answerDiv.style.display === 'block';
+        if (!answerShown && e.code === 'Space') {
+          e.preventDefault();
+          showAnswer();
+          return;
+        }
+        if (!answerShown) return; // ignore other keys until revealed
+
+        if (e.key === 'ArrowUp') { e.preventDefault(); moveFocus(-1); }
+        else if (e.key === 'ArrowDown') { e.preventDefault(); moveFocus(1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); toggleChoice('left'); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); toggleChoice('right'); }
+        
+        else if (e.code === 'Space') { // Next when ready
+          e.preventDefault();
+          if (!nextCardBtn.disabled) nextCardBtn.click();
+        }
+      }
+    });
+
+    closeHelp.addEventListener('click', () => (shortcutHelp.style.display = 'none'));
+
+    // --- Results & Review ---
+    function showScore() {
+      flashcardDiv.style.display = 'none';
+
+      // Per-field summary
+      const total = flashcards.length;
+      let summaryHtml = '<h2>Results</h2>';
+      Object.entries(correctCount).forEach(([field, count]) => {
+        const pct = ((count / total) * 100).toFixed(2);
+        summaryHtml += `<div><strong>${field}:</strong> ${count} / ${total} (${pct}%)</div>`;
+      });
+
+      // Review wrong answers table
+      if (wrongLog.length) {
+        summaryHtml += '<h3>Review: Items you marked wrong</h3>';
+        summaryHtml += '<table><thead><tr><th>#</th><th>Prompt</th><th>Field</th><th>Correct Answer</th></tr></thead><tbody>';
+        wrongLog.forEach((w, i) => {
+          summaryHtml += `<tr><td>${i + 1}</td><td>${w.promptHtml}</td><td>${w.field}</td><td>${w.correctValue}</td></tr>`;
+        });
+        summaryHtml += '</tbody></table>';
+      } else {
+        summaryHtml += '<h3>No wrong answers — nice! 🎉</h3>';
+      }
+
+      scoreDiv.innerHTML = summaryHtml;
+      scoreDiv.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
+
