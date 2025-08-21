@@ -252,6 +252,7 @@ line2 (still same field)"';
     let currentIndex = 0;
     let correctCount = {};
     let wrongLog = []; // for review table
+    let visibleIdx = [], testIdx = [];
 
     // Keyboard focus/selection within a card
     let focusIdx = 0; // which tested field is focused
@@ -316,13 +317,24 @@ line2 (still same field)"';
     });
 
     startBtn.addEventListener('click', () => {
-      const visibleIdx = Array.from(
+      visibleIdx = Array.from(
         visibleFieldsDiv.querySelectorAll('input:checked')
       ).map((cb) => +cb.dataset.index);
-      const testIdx = Array.from(
+      testIdx = Array.from(
         testFieldsDiv.querySelectorAll('input:checked')
       ).map((cb) => +cb.dataset.index);
 
+      initFlashcards();
+
+      document.getElementById('uploadSection').style.display = 'none';
+      selectorDiv.style.display = 'none';
+      flashcardDiv.style.display = 'block';
+      currentIndex = 0;
+      focusIdx = 0;
+      showQuestion();
+    });
+
+    function initFlashcards() {
       // Only include rows that have values for all selected indices
       const validRecs = rawRecords.filter((rec) =>
         visibleIdx.concat(testIdx).every((i) => rec[i] !== undefined)
@@ -341,17 +353,17 @@ line2 (still same field)"';
         return { qHtml: promptParts.join('<br>'), answers };
       });
 
+      // Shuffle flashcards to randomize order
+      for (let i = flashcards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [flashcards[i], flashcards[j]] = [flashcards[j], flashcards[i]];
+      }
+
       // Init per-field counters
       correctCount = {};
       testIdx.forEach((i) => (correctCount[headers[i]] = 0));
       wrongLog = [];
-
-      document.getElementById('uploadSection').style.display = 'none';
-      selectorDiv.style.display = 'none';
-      flashcardDiv.style.display = 'block';
-      currentIndex = 0;
-      showQuestion();
-    });
+    }
 
     // --- Card lifecycle ---
     function showQuestion() {
@@ -557,9 +569,18 @@ line2 (still same field)"';
       } else {
         summaryHtml += '<h3>No wrong answers — nice! 🎉</h3>';
       }
+      summaryHtml += '<div style="margin-top:20px;"><button id="retakeBtn">Retake Test</button></div>';
 
       scoreDiv.innerHTML = summaryHtml;
       scoreDiv.style.display = 'block';
+      document.getElementById('retakeBtn').addEventListener('click', () => {
+        initFlashcards();
+        scoreDiv.style.display = 'none';
+        flashcardDiv.style.display = 'block';
+        currentIndex = 0;
+        focusIdx = 0;
+        showQuestion();
+      });
     }
   </script>
 </body>
