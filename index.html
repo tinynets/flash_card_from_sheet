@@ -4,145 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Flashcard App</title>
-  <style>
-    :root {
-      --ok: #16a34a;
-      --bad: #dc2626;
-      --accent: #2563eb;
-      --muted: #e5e7eb;
-    }
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
-      margin: 0;
-      background: #f0f0f0;
-      padding-top: 60px;
-    }
-    header {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 50px;
-      background: #fff;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      display: flex;
-      align-items: center;
-      padding: 0 20px;
-      box-sizing: border-box;
-      z-index: 1000;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 1.5em;
-    }
-    #container {
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-      width: 90%;
-      max-width: 800px;
-      text-align: center;
-      margin-top: 20px;
-    }
-    fieldset {
-      margin: 10px 0;
-      text-align: left;
-    }
-    #flashcard {
-      margin-top: 20px;
-    }
-    #progress {
-      font-size: 0.95em;
-      color: #333;
-      margin-bottom: 10px;
-    }
-    #question {
-      font-size: 1.2em;
-      margin: 16px 0;
-      text-align: left;
-      background: #fafafa;
-      border: 1px solid var(--muted);
-      border-radius: 8px;
-      padding: 12px;
-    }
-    #answerValues div {
-      font-size: 1.05em;
-      margin: 6px 0 10px;
-      color: #333;
-      text-align: left;
-    }
-    .answer-test {
-      margin: 4px 0 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px;
-      border-radius: 8px;
-      border: 1px dashed transparent;
-    }
-    .answer-test.kbd-focus {
-      border-color: var(--accent);
-      background: #f8fafc;
-    }
-    .btn-group { display: inline-flex; gap: 8px; }
-    button {
-      padding: 8px 14px;
-      margin: 0;
-      font-size: 0.95em;
-      border: 1px solid #d1d5db;
-      background: #fff;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: box-shadow 0.1s, border-color 0.1s;
-    }
-    button:hover { box-shadow: 0 0 0 3px #0000000b; }
-    button:disabled { opacity: 0.55; cursor: not-allowed; }
-
-    .choice.selected { border: 2px solid var(--accent); }
-    .is-correct { border: 2px solid var(--ok) !important; }
-    .is-wrong { border: 2px solid var(--bad) !important; }
-
-    #nextCard { background: var(--accent); color: white; border-color: var(--accent); }
-    #startBtn { background: var(--ok); color: white; border-color: var(--ok); margin-top: 10px; }
-
-    #score { text-align: left; }
-    #score h3 { margin: 16px 0 8px; }
-    #score table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    #score th, #score td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; vertical-align: top; }
-    #score tr:nth-child(even) { background: #fafafa; }
-
-    #instructions { margin-top: 10px; color: #333; }
-
-    #shortcutHelp {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-    }
-    #shortcutContent {
-      background: #fff;
-      color: #000;
-      padding: 20px;
-      border-radius: 8px;
-      max-width: 80%;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    }
-    #shortcutContent h2 { margin-top: 0; }
-    #shortcutContent ul { text-align: left; }
-    #closeHelp { background: var(--bad); color: #fff; }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header><h1>Flashcard App</h1></header>
@@ -203,11 +65,7 @@
       let field = '';
       let inQuotes = false;
       // Normalize newlines and strip BOM if present
-      const s = String(text).replace(/^﻿/, '').replace(/
-/g, '
-').replace(/
-/g, '
-');
+      const s = String(text).replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
       for (let i = 0; i < s.length; i++) {
         const ch = s[i];
         if (ch === '"') {
@@ -215,8 +73,7 @@
           else { inQuotes = !inQuotes; }
         } else if (ch === ',' && !inQuotes) {
           row.push(field); field = '';
-        } else if (ch === '
-' && !inQuotes) {
+        } else if (ch === '\n' && !inQuotes) {
           row.push(field); rows.push(row); row = []; field = '';
         } else {
           field += ch;
@@ -230,15 +87,11 @@
 
     // --- Simple tests for the parser (dev console) ---
     (function testCSV() {
-      const text1 = '"a","b"
-"x, y","z"';
+      const text1 = '"a","b"\n"x, y","z"';
       const out1 = parseCSV(text1);
       console.log('CSV test block 1', out1);
 
-      const text2 = 'word,definition
-"alpha","first, primary"
-"beta","line1
-line2 (still same field)"';
+      const text2 = 'word,definition\n"alpha","first, primary"\n"beta","line1\nline2 (still same field)"';
       const out2 = parseCSV(text2);
       console.log('CSV test block 2 (embedded comma + newline)', out2);
 
@@ -549,14 +402,28 @@ line2 (still same field)"';
     // --- Results & Review ---
     function showScore() {
       flashcardDiv.style.display = 'none';
-
-      // Per-field summary
-      const total = flashcards.length;
-      let summaryHtml = '<h2>Results</h2>';
-      Object.entries(correctCount).forEach(([field, count]) => {
-        const pct = ((count / total) * 100).toFixed(2);
-        summaryHtml += `<div><strong>${field}:</strong> ${count} / ${total} (${pct}%)</div>`;
+      // Recompute per-field stats from answered cards to avoid any drift
+      const fieldStats = {}; // field -> { correct, total }
+      flashcards.forEach(card => {
+        card.answers.forEach(ans => {
+          if (!fieldStats[ans.field]) fieldStats[ans.field] = { correct: 0, total: 0 };
+          fieldStats[ans.field].total++;
+          if (ans.final === 'correct') fieldStats[ans.field].correct++;
+        });
       });
+
+      // Build summary HTML
+      let summaryHtml = '<h2>Results</h2>';
+      let grandCorrect = 0, grandTotal = 0;
+      Object.entries(fieldStats).forEach(([field, stats]) => {
+        const pct = stats.total ? ((stats.correct / stats.total) * 100).toFixed(2) : '0.00';
+        summaryHtml += `<div><strong>${field}:</strong> ${stats.correct} / ${stats.total} (${pct}%)</div>`;
+        grandCorrect += stats.correct; grandTotal += stats.total;
+      });
+      if (grandTotal > 0 && Object.keys(fieldStats).length > 1) {
+        const overallPct = ((grandCorrect / grandTotal) * 100).toFixed(2);
+        summaryHtml += `<div style="margin-top:8px;"><em>Overall:</em> <strong>${grandCorrect} / ${grandTotal} (${overallPct}%)</strong></div>`;
+      }
 
       // Review wrong answers table
       if (wrongLog.length) {
