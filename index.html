@@ -509,7 +509,12 @@
       } else {
         summaryHtml += '<h3>No wrong answers — nice! 🎉</h3>';
       }
-      summaryHtml += '<div style="margin-top:20px;"><button id="retakeBtn">Retake Test</button></div>';
+      summaryHtml += '<div style="margin-top:20px;">';
+      summaryHtml += '<button id="retakeBtn">Retake Test</button>';
+      if (wrongLog.length) {
+        summaryHtml += ' <button id="reviewBtn">Review Mistakes</button>';
+      }
+      summaryHtml += '</div>';
 
       scoreDiv.innerHTML = summaryHtml;
       scoreDiv.style.display = 'block';
@@ -522,6 +527,45 @@
         startTotalTimer();
         showQuestion();
       });
+      // Wire Review Mistakes button when present
+      const reviewBtnEl = document.getElementById('reviewBtn');
+      if (reviewBtnEl) {
+        reviewBtnEl.addEventListener('click', () => {
+          startReviewFromWrongLog();
+        });
+      }
+    }
+
+    // Start a focused quiz containing only the items the user marked wrong
+    function startReviewFromWrongLog() {
+      if (!wrongLog || !wrongLog.length) return;
+
+      // Build a flashcard per wrong-log entry (one tested field each)
+      flashcards = wrongLog.map(w => ({
+        qHtml: w.promptHtml,
+        answers: [
+          { field: w.field, value: w.correctValue, answered: false, pending: 'correct' }
+        ]
+      }));
+
+      // Shuffle review set
+      for (let i = flashcards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [flashcards[i], flashcards[j]] = [flashcards[j], flashcards[i]];
+      }
+
+      // Reset per-session counters and state for the review run
+      correctCount = {};
+      flashcards.forEach(card => card.answers.forEach(a => (correctCount[a.field] = 0)));
+      // Clear wrongLog so the review run collects fresh mistakes
+      wrongLog = [];
+
+      scoreDiv.style.display = 'none';
+      flashcardDiv.style.display = 'block';
+      currentIndex = 0;
+      focusIdx = 0;
+      startTotalTimer();
+      showQuestion();
     }
   </script>
 </body>
