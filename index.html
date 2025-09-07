@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Flashcard App</title>
+  <title>Wordsy</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header><h1>Flashcard App</h1></header>
+  <header><h1>Wordsy</h1></header>
   <div id="container">
     <div id="uploadSection">
       <input type="file" id="fileInput" accept=".csv" /><br />
@@ -28,7 +28,9 @@
     </div>
 
     <div id="flashcard" style="display: none">
+      <div id="totalTime" style="font-size: 1.5em; font-weight: bold; color: #2563eb; margin-bottom: 10px;"></div>
       <div id="progress"></div>
+      <div id="cardTime" style="font-size: 1em; color: #555; margin-bottom: 10px;"></div>
       <div id="question"></div>
       <div id="answerDiv" style="display: none">
         <div id="answerValues"></div>
@@ -110,6 +112,12 @@
     // Keyboard focus/selection within a card
     let focusIdx = 0; // which tested field is focused
 
+    // Timer variables
+    let totalStartTime = null;
+    let cardStartTime = null;
+    let totalTimerInterval = null;
+    let cardTimerInterval = null;
+
     const fileInput = document.getElementById('fileInput');
     const selectorDiv = document.getElementById('selector');
     const visibleFieldsDiv = document.getElementById('visibleFields');
@@ -128,6 +136,66 @@
     const instructionsP = document.getElementById('instructions');
     const shortcutHelp = document.getElementById('shortcutHelp');
     const closeHelp = document.getElementById('closeHelp');
+
+    // Timer elements
+    const totalTimeDiv = document.getElementById('totalTime');
+    const cardTimeDiv = document.getElementById('cardTime');
+
+    // Timer functions
+    function formatTime(seconds) {
+      const hrs = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+      if (hrs > 0) {
+        return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      } else {
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      }
+    }
+
+    function updateTotalTime() {
+      if (totalStartTime) {
+        const elapsed = Math.floor((Date.now() - totalStartTime) / 1000);
+        totalTimeDiv.textContent = `Total Time: ${formatTime(elapsed)}`;
+      }
+    }
+
+    function updateCardTime() {
+      if (cardStartTime) {
+        const elapsed = Math.floor((Date.now() - cardStartTime) / 1000);
+        cardTimeDiv.textContent = `Card Time: ${formatTime(elapsed)}`;
+      } else {
+        cardTimeDiv.textContent = '';
+      }
+    }
+
+    function startTotalTimer() {
+      totalStartTime = Date.now();
+      totalTimerInterval = setInterval(updateTotalTime, 1000);
+      updateTotalTime();
+    }
+
+    function stopTotalTimer() {
+      if (totalTimerInterval) {
+        clearInterval(totalTimerInterval);
+        totalTimerInterval = null;
+      }
+    }
+
+    function startCardTimer() {
+      cardStartTime = Date.now();
+      cardTimerInterval = setInterval(updateCardTime, 1000);
+      updateCardTime();
+    }
+
+    function stopCardTimer() {
+      if (cardTimerInterval) {
+        clearInterval(cardTimerInterval);
+        cardTimerInterval = null;
+      }
+      cardStartTime = null;
+      updateCardTime();
+    }
 
     // --- File load & header selection ---
     fileInput.addEventListener('change', (e) => {
@@ -184,6 +252,7 @@
       flashcardDiv.style.display = 'block';
       currentIndex = 0;
       focusIdx = 0;
+      startTotalTimer();
       showQuestion();
     });
 
@@ -227,6 +296,7 @@
       questionDiv.innerHTML = card.qHtml;
       answerDiv.style.display = 'none';
       nextCardBtn.disabled = true;
+      startCardTimer();
     }
 
     function showAnswer() {
@@ -350,6 +420,7 @@
     }
 
     nextCardBtn.addEventListener('click', () => {
+      stopCardTimer();
       currentIndex++;
       if (currentIndex < flashcards.length) showQuestion();
       else showScore();
@@ -401,6 +472,8 @@
 
     // --- Results & Review ---
     function showScore() {
+      stopCardTimer();
+      stopTotalTimer();
       flashcardDiv.style.display = 'none';
       // Recompute per-field stats from answered cards to avoid any drift
       const fieldStats = {}; // field -> { correct, total }
@@ -446,6 +519,7 @@
         flashcardDiv.style.display = 'block';
         currentIndex = 0;
         focusIdx = 0;
+        startTotalTimer();
         showQuestion();
       });
     }
